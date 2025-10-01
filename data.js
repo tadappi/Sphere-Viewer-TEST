@@ -38,8 +38,8 @@ var APP_DATA = {
           "yaw": 1.3480750122223704,
           "pitch": 0.27637355564418264,
           "title": "メイプル",
-          "text": "link"
-        }
+"text": "<a href='https://tadappi.github.io/Sphere-Viewer-TEST/maple.jpg' target='_blank'>メイプル写真</a>"
+  },
       ]
     }
   ],

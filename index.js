@@ -10,7 +10,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * See the License for the License for the specific language governing permissions and
  * limitations under the License.
  */
 'use strict';
@@ -21,7 +21,7 @@
   var screenfull = window.screenfull;
   var data = window.APP_DATA;
 
-  // 🔸 現在表示中のシーンを保持（ズーム用）
+  // 現在表示中のシーンを保持（ズーム演出で使う）
   var currentScene = null;
 
   // Grab elements from DOM.
@@ -194,7 +194,7 @@
     startAutorotate();
     updateSceneName(scene);
     updateSceneList(scene);
-    // 🔸 現在のシーンを記録（ズーム演出で使う）
+    // 現在のシーンを記録
     currentScene = scene;
   }
 
@@ -315,7 +315,7 @@
 
     var text = document.createElement('div');
     text.classList.add('info-hotspot-text');
-    text.innerHTML = hotspot.text; // data.js の <a href="..."> がそのまま反映される
+    text.innerHTML = hotspot.text; // data.js の <a href="..."> がそのまま反映
 
     wrapper.appendChild(header);
     wrapper.appendChild(text);
@@ -334,7 +334,7 @@
     wrapper.querySelector('.info-hotspot-header').addEventListener('click', toggle);
     modal.querySelector('.info-hotspot-close-wrapper').addEventListener('click', toggle);
 
-    // 🔸 ここから追加：リンククリック時に「1秒ズーム→新規タブで開く」
+    // ▼ 追加：リンククリック時に「1秒スムーズに寄ってから」新規タブで開く
     function attachZoomAndOpen(container) {
       var links = container.querySelectorAll('.info-hotspot-text a[href]');
       links.forEach(function(a) {
@@ -342,12 +342,13 @@
           e.preventDefault();
 
           if (currentScene && currentScene.view) {
-            // 寄る向きはこのホットスポットの yaw/pitch
             var nowFov = currentScene.view.fov();
-            var targetFov = Math.max(0.2, nowFov * 0.6); // 数字を小さくすると更に寄る
-            currentScene.view.setParameters(
+            var targetFov = Math.max(0.2, nowFov * 0.6); // 小さいほど寄る
+
+            // lookTo を使って補間しながら移動（←コレが肝）
+            currentScene.view.lookTo(
               { yaw: hotspot.yaw, pitch: hotspot.pitch, fov: targetFov },
-              { transitionDuration: 1000 } // ← 1秒
+              { transitionDuration: 1000 } // 1秒
             );
           }
 

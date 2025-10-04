@@ -10,7 +10,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * See the License for the License for the specific language governing permissions and
  * limitations under the License.
  */
 'use strict';
@@ -20,6 +20,9 @@
   var bowser = window.bowser;
   var screenfull = window.screenfull;
   var data = window.APP_DATA;
+
+  // ★ 追加：現在のシーンを保持（ズーム用）
+  var currentScene = null;
 
   // Grab elements from DOM.
   var panoElement = document.querySelector('#pano');
@@ -189,6 +192,8 @@
     startAutorotate();
     updateSceneName(scene);
     updateSceneList(scene);
+    // ★ 追加：今のシーンを覚える
+    currentScene = scene;
   }
 
   function updateSceneName(scene) {
@@ -344,8 +349,21 @@
       modal.classList.toggle('visible');
     };
 
-    // Show content when hotspot is clicked.
-    wrapper.querySelector('.info-hotspot-header').addEventListener('click', toggle);
+    // ★ 修正：ヘッダーをクリックした時に、そのホットスポット位置へ「ゆっくり寄る」
+    wrapper.querySelector('.info-hotspot-header').addEventListener('click', function() {
+      // まずテキストを開閉
+      toggle();
+
+      // そのうえで、視点をスムーズに移動
+      if (currentScene && currentScene.view) {
+        var nowFov = currentScene.view.fov();
+        var targetFov = Math.max(0.25, nowFov * 0.75); // 小さいほど寄る（0.6で強め、0.85で弱め）
+        currentScene.view.lookTo(
+          { yaw: hotspot.yaw, pitch: hotspot.pitch, fov: targetFov },
+          { transitionDuration: 1200 } // ← 1.2秒で“寄る”
+        );
+      }
+    });
 
     // Hide content when close icon is clicked.
     modal.querySelector('.info-hotspot-close-wrapper').addEventListener('click', toggle);

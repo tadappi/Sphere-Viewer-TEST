@@ -347,7 +347,7 @@
             var targetFov = Math.max(0.2, nowFov * 0.6); // 数字を小さくすると更に寄る
             currentScene.view.setParameters(
               { yaw: hotspot.yaw, pitch: hotspot.pitch, fov: targetFov },
-              { transitionDuration: 1000 } // ← 1秒
+              { transitionDuration: 10000 } // ← 1秒
             );
           }
 

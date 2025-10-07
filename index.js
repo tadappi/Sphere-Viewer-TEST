@@ -1,7 +1,3 @@
-/*
- * Copyright 2016 Google Inc. All rights reserved.
- * Licensed under the Apache License, Version 2.0 (the "License");
- */
 'use strict';
 
 (function() {
@@ -10,7 +6,6 @@
   var screenfull = window.screenfull;
   var data = window.APP_DATA;
 
-  // Grab elements from DOM.
   var panoElement = document.querySelector('#pano');
   var sceneNameElement = document.querySelector('#titleBar .sceneName');
   var sceneListElement = document.querySelector('#sceneList');
@@ -19,7 +14,7 @@
   var autorotateToggleElement = document.querySelector('#autorotateToggle');
   var fullscreenToggleElement = document.querySelector('#fullscreenToggle');
 
-  // Detect desktop or mobile mode.
+  // Detect device type.
   if (window.matchMedia) {
     var setMode = function() {
       if (mql.matches) {
@@ -37,39 +32,28 @@
     document.body.classList.add('desktop');
   }
 
-  // Detect whether we are on a touch device.
   document.body.classList.add('no-touch');
   window.addEventListener('touchstart', function() {
     document.body.classList.remove('no-touch');
     document.body.classList.add('touch');
   });
 
-  // Use tooltip fallback mode on IE < 11.
   if (bowser.msie && parseFloat(bowser.version) < 11) {
     document.body.classList.add('tooltip-fallback');
   }
 
   // Viewer options.
-  var viewerOpts = {
-    controls: {
-      mouseViewMode: data.settings.mouseViewMode
-    }
-  };
-
-  // Initialize viewer.
+  var viewerOpts = { controls: { mouseViewMode: data.settings.mouseViewMode } };
   var viewer = new Marzipano.Viewer(panoElement, viewerOpts);
 
-  // Create scenes.
+  // Scenes.
   var scenes = data.scenes.map(function(data) {
     var urlPrefix = "tiles";
     var source = Marzipano.ImageUrlSource.fromString(
       urlPrefix + "/" + data.id + "/{z}/{f}/{y}/{x}.jpg",
       { cubeMapPreviewUrl: urlPrefix + "/" + data.id + "/preview.jpg" });
     var geometry = new Marzipano.CubeGeometry(data.levels);
-
-    var limiter = Marzipano.RectilinearView.limit.traditional(
-      data.faceSize, 100*Math.PI/180, 120*Math.PI/180
-    );
+    var limiter = Marzipano.RectilinearView.limit.traditional(data.faceSize, 100*Math.PI/180, 120*Math.PI/180);
     var view = new Marzipano.RectilinearView(data.initialViewParameters, limiter);
 
     var scene = viewer.createScene({
@@ -79,13 +63,13 @@
       pinFirstLevel: true
     });
 
-    // link hotspots
+    // Link Hotspots
     data.linkHotspots.forEach(function(hotspot) {
       var element = createLinkHotspotElement(hotspot);
       scene.hotspotContainer().createHotspot(element, { yaw: hotspot.yaw, pitch: hotspot.pitch });
     });
 
-    // info hotspots
+    // Info Hotspots
     data.infoHotspots.forEach(function(hotspot) {
       var element = createInfoHotspotElement(hotspot);
       scene.hotspotContainer().createHotspot(element, { yaw: hotspot.yaw, pitch: hotspot.pitch });
@@ -94,18 +78,14 @@
     return { data: data, scene: scene, view: view };
   });
 
-  // autorotate
+  // Autorotate
   var autorotate = Marzipano.autorotate({
-    yawSpeed: 0.03,
-    targetPitch: 0,
-    targetFov: Math.PI/2
+    yawSpeed: 0.03, targetPitch: 0, targetFov: Math.PI/2
   });
-  if (data.settings.autorotateEnabled) {
-    autorotateToggleElement.classList.add('enabled');
-  }
+  if (data.settings.autorotateEnabled) autorotateToggleElement.classList.add('enabled');
   autorotateToggleElement.addEventListener('click', toggleAutorotate);
 
-  // fullscreen
+  // Fullscreen
   if (screenfull.enabled && data.settings.fullscreenButton) {
     document.body.classList.add('fullscreen-enabled');
     fullscreenToggleElement.addEventListener('click', function() { screenfull.toggle(); });
@@ -117,9 +97,9 @@
     document.body.classList.add('fullscreen-disabled');
   }
 
-  // scene list
   sceneListToggleElement.addEventListener('click', toggleSceneList);
   if (!document.body.classList.contains('mobile')) showSceneList();
+
   scenes.forEach(function(scene) {
     var el = document.querySelector('#sceneList .scene[data-id="' + scene.data.id + '"]');
     el.addEventListener('click', function() {
@@ -128,21 +108,22 @@
     });
   });
 
-  // view control buttons
+  // View control buttons
   var viewUpElement = document.querySelector('#viewUp');
   var viewDownElement = document.querySelector('#viewDown');
   var viewLeftElement = document.querySelector('#viewLeft');
   var viewRightElement = document.querySelector('#viewRight');
   var viewInElement = document.querySelector('#viewIn');
   var viewOutElement = document.querySelector('#viewOut');
+
   var velocity = 0.7, friction = 3;
   var controls = viewer.controls();
-  controls.registerMethod('upElement',    new Marzipano.ElementPressControlMethod(viewUpElement,     'y', -velocity, friction), true);
-  controls.registerMethod('downElement',  new Marzipano.ElementPressControlMethod(viewDownElement,   'y',  velocity, friction), true);
-  controls.registerMethod('leftElement',  new Marzipano.ElementPressControlMethod(viewLeftElement,   'x', -velocity, friction), true);
-  controls.registerMethod('rightElement', new Marzipano.ElementPressControlMethod(viewRightElement,  'x',  velocity, friction), true);
-  controls.registerMethod('inElement',    new Marzipano.ElementPressControlMethod(viewInElement,  'zoom', -velocity, friction), true);
-  controls.registerMethod('outElement',   new Marzipano.ElementPressControlMethod(viewOutElement, 'zoom',  velocity, friction), true);
+  controls.registerMethod('upElement',    new Marzipano.ElementPressControlMethod(viewUpElement, 'y', -velocity, friction), true);
+  controls.registerMethod('downElement',  new Marzipano.ElementPressControlMethod(viewDownElement, 'y', velocity, friction), true);
+  controls.registerMethod('leftElement',  new Marzipano.ElementPressControlMethod(viewLeftElement, 'x', -velocity, friction), true);
+  controls.registerMethod('rightElement', new Marzipano.ElementPressControlMethod(viewRightElement, 'x', velocity, friction), true);
+  controls.registerMethod('inElement',    new Marzipano.ElementPressControlMethod(viewInElement, 'zoom', -velocity, friction), true);
+  controls.registerMethod('outElement',   new Marzipano.ElementPressControlMethod(viewOutElement, 'zoom', velocity, friction), true);
 
   function sanitize(s) {
     return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;');
@@ -190,36 +171,33 @@
     }
   }
 
-  // link hotspot element
-  function createLinkHotspotElement(hotspot) {
-    var wrapper = document.createElement('div');
-    wrapper.classList.add('hotspot', 'link-hotspot');
-    var icon = document.createElement('img');
-    icon.src = 'img/link.png';
-    icon.classList.add('link-hotspot-icon');
-    ['-ms-transform','-webkit-transform','transform'].forEach(function(p){
-      icon.style[p] = 'rotate(' + hotspot.rotation + 'rad)';
-    });
-    wrapper.addEventListener('click', function() {
-      switchScene(findSceneById(hotspot.target));
-    });
-    stopTouchAndScrollEventPropagation(wrapper);
-    var tooltip = document.createElement('div');
-    tooltip.classList.add('hotspot-tooltip','link-hotspot-tooltip');
-    tooltip.innerHTML = findSceneDataById(hotspot.target).name;
-    wrapper.appendChild(icon); wrapper.appendChild(tooltip);
-    return wrapper;
-  }
+  // === ① クリックした方向にズーム（2秒後に戻る） ===
+  panoElement.addEventListener('click', function(e) {
+    var view = viewer.view();
+    var current = view.parameters();
 
-  // ====== Hover Zoom (debounced, animation-safe) ======
-  var HOVER_FOV = 0.30;             // ズーム量（小さいほど寄る）
-  var HOVER_DURATION = 1200;        // 寄る時間(ms)
-  var RETURN_DURATION = 900;        // 戻る時間(ms)
-  var HOVER_OUT_DELAY_MS = 250;     // 外れ判定の遅延（デバウンス）
+    // クリック位置 → yaw/pitchに変換
+    var rect = panoElement.getBoundingClientRect();
+    var x = (e.clientX - rect.left) / rect.width * 2 - 1;
+    var y = (e.clientY - rect.top) / rect.height * 2 - 1;
+    var targetYaw = current.yaw + x * 0.5;   // 適度に補正
+    var targetPitch = current.pitch - y * 0.3;
+    var targetFov = 0.35; // 寄り具合
 
+    stopAutorotate();
+    view.animateTo({ yaw: targetYaw, pitch: targetPitch, fov: targetFov },
+      { duration: 1000, easing: 'inOutSine' });
+
+    setTimeout(function() {
+      view.animateTo(current, { duration: 1000, easing: 'inOutSine' });
+      setTimeout(startAutorotate, 2000);
+    }, 2000);
+  });
+
+  // === ② ホットスポット展開後、リンククリック時に2秒待つ ===
   function createInfoHotspotElement(hotspot) {
     var wrapper = document.createElement('div');
-    wrapper.classList.add('hotspot','info-hotspot');
+    wrapper.classList.add('hotspot', 'info-hotspot');
 
     var header = document.createElement('div');
     header.classList.add('info-hotspot-header');
@@ -253,99 +231,35 @@
     text.classList.add('info-hotspot-text');
     text.innerHTML = hotspot.text;
 
+    // === ここでリンククリック時に2秒待ってから遷移 ===
+    text.querySelectorAll('a').forEach(function(link) {
+      link.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        var href = this.href;
+        link.style.opacity = 0.6;
+        setTimeout(function() { window.open(href, '_blank'); }, 2000);
+      });
+    });
+
     wrapper.appendChild(header);
     wrapper.appendChild(text);
 
-    // モーダル（モバイル用）
     var modal = document.createElement('div');
     modal.innerHTML = wrapper.innerHTML;
     modal.classList.add('info-hotspot-modal');
     document.body.appendChild(modal);
 
-    var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    var toggle = function() {
-      wrapper.classList.toggle('visible');
-      modal.classList.toggle('visible');
-    };
-
-    // ---- Hover/Click handlers with debounce & lock ----
-    var savedParams = null;
-    var zooming = false;       // アニメ中フラグ
-    var hoverActive = false;   // 現在ホバー中か
-    var outTimer = null;       // デバウンス用
-
-    function hoverIn() {
-      if (hoverActive) return;
-      hoverActive = true;
-
-      // デバウンスキャンセル
-      if (outTimer) { clearTimeout(outTimer); outTimer = null; }
-
-      stopAutorotate();
-
-      var v = viewer.view();
-      if (!savedParams) savedParams = v.parameters();
-
-      zooming = true;
-      v.animateTo({
-        yaw: hotspot.yaw, pitch: hotspot.pitch, fov: HOVER_FOV
-      }, {
-        duration: HOVER_DURATION,
-        easing: 'inOutSine'
-      });
-      setTimeout(function(){ zooming = false; }, HOVER_DURATION + 30);
-    }
-
-    function hoverOut() {
-      // ズーム中は即戻さず、完了後に戻す（デバウンスも追加）
-      if (outTimer) clearTimeout(outTimer);
-      outTimer = setTimeout(function() {
-        if (!hoverActive) return; // 既に外れている
-        if (zooming) {            // まだズーム中なら少し待って再度
-          return hoverOut();
-        }
-        var v = viewer.view();
-        if (savedParams) {
-          v.animateTo({
-            yaw: savedParams.yaw, pitch: savedParams.pitch, fov: savedParams.fov
-          }, {
-            duration: RETURN_DURATION,
-            easing: 'inOutSine'
-          });
-        }
-        savedParams = null;
-        hoverActive = false;
-        startAutorotate();
-      }, HOVER_OUT_DELAY_MS);
-    }
-
-    if (isTouch) {
-      // タッチはクリックで開閉＋寄る/戻る
-      header.addEventListener('click', function() { toggle(); hoverIn(); });
-      modal.querySelector('.info-hotspot-close-wrapper')
-           .addEventListener('click', function(){ toggle(); hoverOut(); });
-    } else {
-      // PCはヘッダー上のホバーだけで制御（要素が動いても範囲が安定）
-      header.addEventListener('mouseenter', function(){
-        wrapper.classList.add('visible'); modal.classList.add('visible'); hoverIn();
-      });
-      header.addEventListener('mouseleave', function(){
-        wrapper.classList.remove('visible'); modal.classList.remove('visible'); hoverOut();
-      });
-      header.addEventListener('focus', hoverIn);
-      header.addEventListener('blur', hoverOut);
-    }
-
+    var toggle = function() { wrapper.classList.toggle('visible'); modal.classList.toggle('visible'); };
+    wrapper.querySelector('.info-hotspot-header').addEventListener('click', toggle);
+    modal.querySelector('.info-hotspot-close-wrapper').addEventListener('click', toggle);
     stopTouchAndScrollEventPropagation(wrapper);
     return wrapper;
   }
-  // ====== /Hover Zoom ======
 
-  function stopTouchAndScrollEventPropagation(element, eventList) {
-    var eventList = [ 'touchstart','touchmove','touchend','touchcancel','wheel','mousewheel' ];
-    for (var i = 0; i < eventList.length; i++) {
-      element.addEventListener(eventList[i], function(event) { event.stopPropagation(); });
-    }
+  function stopTouchAndScrollEventPropagation(element) {
+    ['touchstart','touchmove','touchend','touchcancel','wheel','mousewheel'].forEach(function(ev){
+      element.addEventListener(ev, function(e){ e.stopPropagation(); });
+    });
   }
 
   function findSceneById(id) {
@@ -357,6 +271,5 @@
     return null;
   }
 
-  // initial
   switchScene(scenes[0]);
 })();

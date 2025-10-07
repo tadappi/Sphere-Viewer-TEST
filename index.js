@@ -1,5 +1,5 @@
 /*
- * Marzipano custom — precise click-to-zoom (manual tween) + delayed link open
+ * Marzipano custom — hotspot-only zoom (manual tween) + open link after zoom
  */
 'use strict';
 
@@ -9,6 +9,7 @@
   var screenfull = window.screenfull;
   var data = window.APP_DATA;
 
+  // --- 基本DOM要素 ---
   var panoElement = document.querySelector('#pano');
   var sceneNameElement = document.querySelector('#titleBar .sceneName');
   var sceneListElement = document.querySelector('#sceneList');
@@ -17,7 +18,7 @@
   var autorotateToggleElement = document.querySelector('#autorotateToggle');
   var fullscreenToggleElement = document.querySelector('#fullscreenToggle');
 
-  // Mode detect
+  // --- モード判定 ---
   if (window.matchMedia) {
     var setMode = function () {
       if (mql.matches) { document.body.classList.remove('desktop'); document.body.classList.add('mobile'); }
@@ -27,20 +28,22 @@
     setMode(); mql.addListener(setMode);
   } else { document.body.classList.add('desktop'); }
 
+  // タッチ検出
   document.body.classList.add('no-touch');
   window.addEventListener('touchstart', function () {
     document.body.classList.remove('no-touch'); document.body.classList.add('touch');
   });
 
+  // IE 旧版
   if (bowser.msie && parseFloat(bowser.version) < 11) {
     document.body.classList.add('tooltip-fallback');
   }
 
-  // Viewer
+  // --- Viewer ---
   var viewerOpts = { controls: { mouseViewMode: data.settings.mouseViewMode } };
   var viewer = new Marzipano.Viewer(panoElement, viewerOpts);
 
-  // Scenes
+  // --- シーン作成 ---
   var scenes = data.scenes.map(function (data) {
     var urlPrefix = 'tiles';
     var source = Marzipano.ImageUrlSource.fromString(
@@ -55,24 +58,39 @@
 
     var scene = viewer.createScene({ source: source, geometry: geometry, view: view, pinFirstLevel: true });
 
+    // シーンリンク（そのまま）
     data.linkHotspots.forEach(function (hotspot) {
       var el = createLinkHotspotElement(hotspot);
       scene.hotspotContainer().createHotspot(el, { yaw: hotspot.yaw, pitch: hotspot.pitch });
     });
 
+    // 情報ホットスポット（アイコンのみ／クリックでズーム→リンク）
     data.infoHotspots.forEach(function (hotspot) {
-      var el = createInfoHotspotElement(hotspot);
+      var el = createInfoHotspotIconOnly(hotspot, view);
       scene.hotspotContainer().createHotspot(el, { yaw: hotspot.yaw, pitch: hotspot.pitch });
     });
 
     return { data: data, scene: scene, view: view };
   });
 
-  // Autorotate
+  // --- オートローテーション ---
   var autorotate = Marzipano.autorotate({ yawSpeed: 0.03, targetPitch: 0, targetFov: Math.PI/2 });
   if (data.settings.autorotateEnabled) autorotateToggleElement.classList.add('enabled');
   autorotateToggleElement.addEventListener('click', toggleAutorotate);
+  function startAutorotate(){
+    if (!autorotateToggleElement.classList.contains('enabled')) return;
+    viewer.startMovement(autorotate); viewer.setIdleMovement(3000, autorotate);
+  }
+  function stopAutorotate(){ viewer.stopMovement(); viewer.setIdleMovement(Infinity); }
+  function toggleAutorotate(){
+    if (autorotateToggleElement.classList.contains('enabled')){
+      autorotateToggleElement.classList.remove('enabled'); stopAutorotate();
+    } else {
+      autorotateToggleElement.classList.add('enabled'); startAutorotate();
+    }
+  }
 
+  // --- フルスクリーン ---
   if (screenfull.enabled && data.settings.fullscreenButton) {
     document.body.classList.add('fullscreen-enabled');
     fullscreenToggleElement.addEventListener('click', function(){ screenfull.toggle(); });
@@ -82,9 +100,9 @@
     });
   } else { document.body.classList.add('fullscreen-disabled'); }
 
+  // --- シーンリスト ---
   sceneListToggleElement.addEventListener('click', toggleSceneList);
   if (!document.body.classList.contains('mobile')) showSceneList();
-
   scenes.forEach(function (scene) {
     var el = document.querySelector('#sceneList .scene[data-id="' + scene.data.id + '"]');
     el.addEventListener('click', function () {
@@ -92,15 +110,6 @@
       if (document.body.classList.contains('mobile')) hideSceneList();
     });
   });
-
-  // Controls
-  var controls = viewer.controls(), vel=0.7, fr=3;
-  controls.registerMethod('upElement',   new Marzipano.ElementPressControlMethod(document.querySelector('#viewUp'),   'y', -vel, fr), true);
-  controls.registerMethod('downElement', new Marzipano.ElementPressControlMethod(document.querySelector('#viewDown'), 'y',  vel, fr), true);
-  controls.registerMethod('leftElement', new Marzipano.ElementPressControlMethod(document.querySelector('#viewLeft'), 'x', -vel, fr), true);
-  controls.registerMethod('rightElement',new Marzipano.ElementPressControlMethod(document.querySelector('#viewRight'),'x',  vel, fr), true);
-  controls.registerMethod('inElement',   new Marzipano.ElementPressControlMethod(document.querySelector('#viewIn'), 'zoom', -vel, fr), true);
-  controls.registerMethod('outElement',  new Marzipano.ElementPressControlMethod(document.querySelector('#viewOut'),'zoom',  vel, fr), true);
 
   function sanitize(s){ return s.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'); }
   function switchScene(scene){
@@ -122,21 +131,6 @@
   function hideSceneList(){ sceneListElement.classList.remove('enabled'); sceneListToggleElement.classList.remove('enabled'); }
   function toggleSceneList(){ sceneListElement.classList.toggle('enabled'); sceneListToggleElement.classList.toggle('enabled'); }
 
-  function startAutorotate(){
-    if (!autorotateToggleElement.classList.contains('enabled')) return;
-    viewer.startMovement(autorotate); viewer.setIdleMovement(3000, autorotate);
-  }
-  function stopAutorotate(){ viewer.stopMovement(); viewer.setIdleMovement(Infinity); }
-  function toggleAutorotate(){
-    if (autorotateToggleElement.classList.contains('enabled')){
-      autorotateToggleElement.classList.remove('enabled'); stopAutorrotate();
-    } else {
-      autorotateToggleElement.classList.add('enabled'); startAutorotate();
-    }
-  }
-  // typo fix
-  function stopAutorrotate(){ stopAutorotate(); }
-
   // =========================
   // 手作りアニメータ（rAF）
   // =========================
@@ -147,11 +141,7 @@
     function tick(now){
       var t = Math.min(1, (now - start) / duration);
       var k = easeInOutSine(t);
-      view.setParameters({
-        yaw:   lerp(from.yaw,   to.yaw,   k),
-        pitch: lerp(from.pitch, to.pitch, k),
-        fov:   lerp(from.fov,   to.fov,   k)
-      });
+      view.setParameters({ yaw: lerp(from.yaw,to.yaw,k), pitch: lerp(from.pitch,to.pitch,k), fov: lerp(from.fov,to.fov,k) });
       if (t < 1) requestAnimationFrame(tick);
       else if (done) done();
     }
@@ -159,50 +149,8 @@
   }
 
   // ==============================================
-  // クリック位置へ正確にズーム（スムーズ版）
+  // Link Hotspot（テンプレそのまま）
   // ==============================================
-  panoElement.addEventListener('click', function (e) {
-    var view = viewer.view();
-    var before = view.parameters();
-    var rect = panoElement.getBoundingClientRect();
-
-    // クリック座標→yaw/pitch 変換（正確）
-    var coords = view.screenToCoordinates({ x: e.clientX - rect.left, y: e.clientY - rect.top }, viewer.stage());
-    if (!coords || !isFinite(coords.yaw) || !isFinite(coords.pitch)) return;
-
-    var target = {
-      yaw: coords.yaw,
-      pitch: coords.pitch,
-      fov: Math.min(before.fov * 0.6, 0.35) // 小さいほど寄る
-    };
-
-    stopAutorotate();
-
-    // 1) 寄る（1.2秒）
-    animateParams(view, before, target, 1200, function(){
-      // 2) 2秒保持 → 3) 戻る（1.0秒）→ 4) オートローテ再開
-      setTimeout(function(){
-        animateParams(view, view.parameters(), before, 1000, function(){
-          setTimeout(startAutorotate, 400);
-        });
-      }, 2000);
-    });
-  });
-
-  // ==============================================
-  // ホットスポット内リンク：2秒後に新タブで開く
-  // ==============================================
-  function attachDelayedOpen(container){
-    container.querySelectorAll('a[href]').forEach(function(a){
-      a.addEventListener('click', function(ev){
-        ev.preventDefault();
-        var href = a.href;
-        a.style.opacity = '0.6';
-        setTimeout(function(){ window.open(href, '_blank'); }, 2000);
-      });
-    });
-  }
-
   function createLinkHotspotElement(hotspot){
     var wrapper = document.createElement('div');
     wrapper.classList.add('hotspot','link-hotspot');
@@ -221,62 +169,65 @@
     return wrapper;
   }
 
-  function createInfoHotspotElement(hotspot){
+  // ==============================================
+  // Info Hotspot: アイコンのみ
+  // クリック → ホットスポット方向へズーム → 直後にリンクを新タブで開く
+  // その後、元のビューにスムーズに戻す＆オートローテ再開
+  // ==============================================
+  function createInfoHotspotIconOnly(hotspot, view){
+    // ラッパ
     var wrapper = document.createElement('div');
-    wrapper.classList.add('hotspot','info-hotspot');
+    wrapper.classList.add('hotspot','info-hotspot','info-hotspot--icononly');
 
-    var header = document.createElement('div');
-    header.classList.add('info-hotspot-header');
-
-    var iconWrapper = document.createElement('div');
-    iconWrapper.classList.add('info-hotspot-icon-wrapper');
+    // アイコン（gif相当。実ファイルは info.png を使用）
     var icon = document.createElement('img');
     icon.src = 'img/info.png';
-    icon.classList.add('info-hotspot-icon');
-    iconWrapper.appendChild(icon);
+    icon.classList.add('info-hotspot-icononly-img');
+    wrapper.appendChild(icon);
 
-    var titleWrapper = document.createElement('div');
-    titleWrapper.classList.add('info-hotspot-title-wrapper');
-    var title = document.createElement('div');
-    title.classList.add('info-hotspot-title');
-    title.innerHTML = hotspot.title;
-    titleWrapper.appendChild(title);
+    // hotspot.text の中の最初のリンク先を取得
+    var linkHref = null;
+    try {
+      var tmp = document.createElement('div');
+      tmp.innerHTML = hotspot.text || '';
+      var a = tmp.querySelector('a[href]');
+      if (a) linkHref = a.href;
+    } catch(e){ /* no-op */ }
 
-    var closeWrapper = document.createElement('div');
-    closeWrapper.classList.add('info-hotspot-close-wrapper');
-    var closeIcon = document.createElement('img');
-    closeIcon.src = 'img/close.png';
-    closeIcon.classList.add('info-hotspot-close-icon');
-    closeWrapper.appendChild(closeIcon);
+    // クリックでズーム→リンク→戻す
+    wrapper.addEventListener('click', function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (!linkHref) return; // リンクが無い場合は何もしない
 
-    header.appendChild(iconWrapper);
-    header.appendChild(titleWrapper);
-    header.appendChild(closeWrapper);
+      var before = view.parameters();
+      var target = {
+        yaw: hotspot.yaw,
+        pitch: hotspot.pitch,
+        fov: Math.min(before.fov * 0.6, 0.35) // 寄り具合
+      };
 
-    var text = document.createElement('div');
-    text.classList.add('info-hotspot-text');
-    text.innerHTML = hotspot.text;
+      stopAutorotate();
 
-    attachDelayedOpen(text);
+      // 寄る（1.0〜1.2秒くらいが自然）
+      animateParams(view, before, target, 1100, function(){
+        // ズーム完了したら すぐにリンクを新タブで開く
+        window.open(linkHref, '_blank');
 
-    wrapper.appendChild(header);
-    wrapper.appendChild(text);
-
-    var modal = document.createElement('div');
-    modal.innerHTML = wrapper.innerHTML;
-    modal.classList.add('info-hotspot-modal');
-    document.body.appendChild(modal);
-
-    attachDelayedOpen(modal);
-
-    var toggle = function(){ wrapper.classList.toggle('visible'); modal.classList.toggle('visible'); };
-    wrapper.querySelector('.info-hotspot-header').addEventListener('click', toggle);
-    modal.querySelector('.info-hotspot-close-wrapper').addEventListener('click', toggle);
+        // その後に元のビューへ戻す（1.0秒）→少し待って自動回転を再開
+        animateParams(view, view.parameters(), before, 1000, function(){
+          setTimeout(startAutorotate, 400);
+        });
+      });
+    });
 
     stopTouchAndScrollEventPropagation(wrapper);
     return wrapper;
   }
 
+  // ==============================================
+  // 共通ユーティリティ
+  // ==============================================
   function stopTouchAndScrollEventPropagation(element){
     ['touchstart','touchmove','touchend','touchcancel','wheel','mousewheel'].forEach(function(ev){
       element.addEventListener(ev, function(e){ e.stopPropagation(); });
@@ -286,5 +237,6 @@
   function findSceneById(id){ for (var i=0;i<scenes.length;i++) if (scenes[i].data.id===id) return scenes[i]; return null; }
   function findSceneDataById(id){ for (var i=0;i<data.scenes.length;i++) if (data.scenes[i].id===id) return data.scenes[i]; return null; }
 
+  // 最初のシーン
   switchScene(scenes[0]);
 })();

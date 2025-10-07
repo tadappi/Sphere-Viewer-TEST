@@ -1,17 +1,6 @@
 /*
  * Copyright 2016 Google Inc. All rights reserved.
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 'use strict';
 
@@ -78,7 +67,12 @@
       { cubeMapPreviewUrl: urlPrefix + "/" + data.id + "/preview.jpg" });
     var geometry = new Marzipano.CubeGeometry(data.levels);
 
-    var limiter = Marzipano.RectilinearView.limit.traditional(data.faceSize, 100*Math.PI/180, 120*Math.PI/180);
+    // 2D視野角の上限/下限などを制限
+    var limiter = Marzipano.RectilinearView.limit.traditional(
+      data.faceSize,
+      100 * Math.PI / 180,
+      120 * Math.PI / 180
+    );
     var view = new Marzipano.RectilinearView(data.initialViewParameters, limiter);
 
     var scene = viewer.createScene({
@@ -245,37 +239,27 @@
   }
 
   function createLinkHotspotElement(hotspot) {
-
-    // Create wrapper element to hold icon and tooltip.
     var wrapper = document.createElement('div');
-    wrapper.classList.add('hotspot');
-    wrapper.classList.add('link-hotspot');
+    wrapper.classList.add('hotspot', 'link-hotspot');
 
-    // Create image element.
     var icon = document.createElement('img');
     icon.src = 'img/link.png';
     icon.classList.add('link-hotspot-icon');
 
-    // Set rotation transform.
     var transformProperties = [ '-ms-transform', '-webkit-transform', 'transform' ];
     for (var i = 0; i < transformProperties.length; i++) {
       var property = transformProperties[i];
       icon.style[property] = 'rotate(' + hotspot.rotation + 'rad)';
     }
 
-    // Add click event handler.
     wrapper.addEventListener('click', function() {
       switchScene(findSceneById(hotspot.target));
     });
 
-    // Prevent touch and scroll events from reaching the parent element.
-    // This prevents the view control logic from interfering with the hotspot.
     stopTouchAndScrollEventPropagation(wrapper);
 
-    // Create tooltip element.
     var tooltip = document.createElement('div');
-    tooltip.classList.add('hotspot-tooltip');
-    tooltip.classList.add('link-hotspot-tooltip');
+    tooltip.classList.add('hotspot-tooltip', 'link-hotspot-tooltip');
     tooltip.innerHTML = findSceneDataById(hotspot.target).name;
 
     wrapper.appendChild(icon);
@@ -284,18 +268,19 @@
     return wrapper;
   }
 
+  // ====== ここから：ホバーでズーム／外したら戻す 実装 ======
+  // ホバー時のズーム量・時間
+  var HOVER_FOV = 0.30;           // 小さいほどズーム（例: 0.30 ≈ 17度）
+  var HOVER_DURATION = 1500;      // ミリ秒
+  var RETURN_DURATION = 1200;     // 戻りアニメの時間
+
   function createInfoHotspotElement(hotspot) {
-
-    // Create wrapper element to hold icon and tooltip.
     var wrapper = document.createElement('div');
-    wrapper.classList.add('hotspot');
-    wrapper.classList.add('info-hotspot');
+    wrapper.classList.add('hotspot', 'info-hotspot');
 
-    // Create hotspot/tooltip header.
     var header = document.createElement('div');
     header.classList.add('info-hotspot-header');
 
-    // Create image element.
     var iconWrapper = document.createElement('div');
     iconWrapper.classList.add('info-hotspot-icon-wrapper');
     var icon = document.createElement('img');
@@ -303,7 +288,6 @@
     icon.classList.add('info-hotspot-icon');
     iconWrapper.appendChild(icon);
 
-    // Create title element.
     var titleWrapper = document.createElement('div');
     titleWrapper.classList.add('info-hotspot-title-wrapper');
     var title = document.createElement('div');
@@ -311,7 +295,6 @@
     title.innerHTML = hotspot.title;
     titleWrapper.appendChild(title);
 
-    // Create close element.
     var closeWrapper = document.createElement('div');
     closeWrapper.classList.add('info-hotspot-close-wrapper');
     var closeIcon = document.createElement('img');
@@ -319,43 +302,101 @@
     closeIcon.classList.add('info-hotspot-close-icon');
     closeWrapper.appendChild(closeIcon);
 
-    // Construct header element.
     header.appendChild(iconWrapper);
     header.appendChild(titleWrapper);
     header.appendChild(closeWrapper);
 
-    // Create text element.
     var text = document.createElement('div');
     text.classList.add('info-hotspot-text');
     text.innerHTML = hotspot.text;
 
-    // Place header and text into wrapper element.
     wrapper.appendChild(header);
     wrapper.appendChild(text);
 
-    // Create a modal for the hotspot content to appear on mobile mode.
+    // モバイル用モーダル（テンプレ通り）
     var modal = document.createElement('div');
     modal.innerHTML = wrapper.innerHTML;
     modal.classList.add('info-hotspot-modal');
     document.body.appendChild(modal);
+
+    // デスクトップはホバー、タッチはクリックでトグル表示
+    var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
     var toggle = function() {
       wrapper.classList.toggle('visible');
       modal.classList.toggle('visible');
     };
 
-    // Show content when hotspot is clicked.
-    wrapper.querySelector('.info-hotspot-header').addEventListener('click', toggle);
+    if (isTouch) {
+      // タッチ端末：クリックで表示/非表示＋寄る
+      wrapper.querySelector('.info-hotspot-header').addEventListener('click', function() {
+        toggle();
+        hoverIn();  // クリックでも寄る
+      });
+      modal.querySelector('.info-hotspot-close-wrapper').addEventListener('click', function() {
+        toggle();
+        hoverOut(); // 閉じたら戻る
+      });
+    } else {
+      // マウス端末：ホバーで表示/非表示＋寄る/戻る
+      wrapper.addEventListener('mouseenter', function() {
+        wrapper.classList.add('visible');
+        modal.classList.add('visible');
+        hoverIn();
+      });
+      wrapper.addEventListener('mouseleave', function() {
+        wrapper.classList.remove('visible');
+        modal.classList.remove('visible');
+        hoverOut();
+      });
+      // キーボード操作にも対応
+      wrapper.addEventListener('focus', hoverIn);
+      wrapper.addEventListener('blur', hoverOut);
+    }
 
-    // Hide content when close icon is clicked.
-    modal.querySelector('.info-hotspot-close-wrapper').addEventListener('click', toggle);
+    // ホバー時のズーム処理
+    var savedParams = null;
+    function hoverIn() {
+      // 既にホバー中なら何もしない
+      if (savedParams) return;
 
-    // Prevent touch and scroll events from reaching the parent element.
-    // This prevents the view control logic from interfering with the hotspot.
+      stopAutorotate();
+
+      var v = viewer.view();
+      savedParams = v.parameters(); // 現在の向きとFOVを保存
+
+      v.setParameters({
+        yaw: hotspot.yaw,
+        pitch: hotspot.pitch,
+        fov: HOVER_FOV
+      }, {
+        transitionDuration: HOVER_DURATION
+        // easing: を指定したい場合は Marzipano の easing を渡せます
+      });
+    }
+
+    function hoverOut() {
+      if (!savedParams) return;
+
+      var v = viewer.view();
+      v.setParameters({
+        yaw: savedParams.yaw,
+        pitch: savedParams.pitch,
+        fov: savedParams.fov
+      }, {
+        transitionDuration: RETURN_DURATION
+      });
+
+      savedParams = null;
+      startAutorotate();
+    }
+
+    // イベントがビューワに伝播しないように
     stopTouchAndScrollEventPropagation(wrapper);
 
     return wrapper;
   }
+  // ====== ここまで：ホバーでズーム／外したら戻す ======
 
   // Prevent touch and scroll events from reaching the parent element.
   function stopTouchAndScrollEventPropagation(element, eventList) {

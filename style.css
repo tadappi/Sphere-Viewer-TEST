@@ -828,3 +828,43 @@ body.view-control-buttons .viewControlButton {
 .viewControlButton-6 {
   margin-left: 105px;
 }
+
+/* ======= Icon-only info hotspot ======= */
+/* 当たり判定を大きく（約120x120 = 40pxの3倍） */
+.info-hotspot.info-hotspot--icononly {
+  width: 120px;
+  height: 120px;
+  margin-left: -60px; /* 中心合わせ */
+  margin-top: -60px;
+  opacity: 0.95;
+  cursor: pointer;
+  /* デバッグ用：範囲を目視したい時だけ有効化
+  outline: 1px dashed rgba(255,255,255,0.25);
+  */
+}
+
+/* 中のアイコン画像は少し小さめ（見た目だけ） */
+.info-hotspot-icononly-img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64px;   /* 必要なら 72〜96px に */
+  height: 64px;
+  transform: translate(-50%, -50%);
+  pointer-events: none; /* 画像自体はイベント拾わず、ラッパで拾う */
+}
+
+/* ==== 既存の「展開UI」を強制的に非表示にする ==== */
+.info-hotspot .info-hotspot-header,
+.info-hotspot .info-hotspot-title-wrapper,
+.info-hotspot .info-hotspot-close-wrapper,
+.info-hotspot .info-hotspot-text,
+.info-hotspot-modal {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+
+
